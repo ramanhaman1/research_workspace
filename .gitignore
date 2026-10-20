@@ -27,3 +27,6 @@ htmlcov/
 # Operating system
 .DS_Store
 Thumbs.db
+
+# Local application data
+data/
