@@ -1,4 +1,5 @@
 
+import secrets
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -12,6 +13,7 @@ AUDIENCE = "resource-service"
 ALLOWED_SCOPES = {
     "datasets:create",
     "datasets:read",
+    "datasets:export",
 }
 
 
@@ -28,7 +30,7 @@ def create_internal_token(
     if not username or role != "researcher":
         raise ValueError("Invalid user or role")
 
-    if scope == "datasets:read":
+    if scope in {"datasets:read", "datasets:export"}:
         if type(dataset_id) is not int or dataset_id < 1:
             raise ValueError("Dataset ID required")
     elif dataset_id is not None:
@@ -54,6 +56,13 @@ def create_internal_token(
 
     if dataset_id is not None:
         payload["dataset_id"] = dataset_id
+
+    
+    if scope == "datasets:export":
+        payload["purpose"] = "csv-export"
+        payload["delegate_to"] = "processing-service"
+        payload["jti"] = secrets.token_urlsafe(16)
+
 
     return jwt.encode(
         payload,

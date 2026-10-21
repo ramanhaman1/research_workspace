@@ -56,7 +56,7 @@ def verify_service_token(
             "application-api", "processing-service"
         )
         or payload.get("scope") not in (
-            "datasets:create", "datasets:read"
+            "datasets:create", "datasets:read" , "datasets:export"
         )
     ):
         raise HTTPException(

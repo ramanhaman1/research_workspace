@@ -79,3 +79,35 @@ def test_admin_cannot_get_dataset_token(secret):
             role="admin",
             scope="datasets:create",
         )
+
+def test_export_token_contains_dataset_scope(secret):
+    token = create_internal_token(
+        username="ali",
+        role="researcher",
+        scope="datasets:export",
+        dataset_id=1,
+    )
+
+    payload = jwt.decode(
+        token,
+        secret,
+        algorithms=["HS256"],
+        audience="resource-service",
+        issuer="research-workspace",
+    )
+
+    assert payload["sub"] == "ali"
+    assert payload["scope"] == "datasets:export"
+    assert payload["dataset_id"] == 1
+    assert payload["purpose"] == "csv-export"
+    assert payload["delegate_to"] == "processing-service"
+    assert payload["jti"]
+
+
+def test_export_requires_dataset_id(secret):
+    with pytest.raises(ValueError):
+        create_internal_token(
+            username="ali",
+            role="researcher",
+            scope="datasets:export",
+        )

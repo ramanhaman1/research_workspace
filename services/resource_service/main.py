@@ -1,6 +1,7 @@
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from services.resource_service import database
 
 from services.resource_service.database import (
     create_dataset,
@@ -96,3 +97,51 @@ def read_dataset(
         )
 
     return dataset
+
+
+@app.get("/internal/exports/{dataset_id}")
+def get_export_dataset(
+    dataset_id: int,
+    claims: dict = Depends(verify_service_token),
+):
+    # Export requests must have the correct permissions.
+    if (
+        claims.get("scope") != "datasets:export"
+        or claims.get("role") != "researcher"
+        or claims.get("azp") != "application-api"
+        or claims.get("purpose") != "csv-export"
+        or claims.get("delegate_to") != "processing-service"
+        or not isinstance(claims.get("jti"), str)
+        or not claims["jti"]
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied",
+        )
+
+    # The token must be limited to the requested dataset.
+    if (
+        type(claims.get("dataset_id")) is not int
+        or claims["dataset_id"] != dataset_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied",
+        )
+
+    # Check dataset ownership in Resource Service.
+    dataset = database.get_dataset(
+        dataset_id,
+        claims["sub"],
+    )
+
+    if dataset is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found",
+        )
+
+    return {
+        "dataset_id": dataset_id,
+        "rows": dataset["rows"],
+    }
