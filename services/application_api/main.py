@@ -1,9 +1,13 @@
+import os
 import httpx
 from pydantic import Field
 
 from services.application_api.internal_tokens import (
     create_internal_token,
 )
+
+from fastapi import Depends, HTTPException, Response
+from services.application_api.auth import get_current_user
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
@@ -166,3 +170,96 @@ async def read_dataset(
         )
 
     return response.json()
+
+
+@app.get("/datasets/{dataset_id}/export")
+async def export_dataset(
+    dataset_id: int,
+    user: dict = Depends(get_current_user),
+):
+    if user["role"] != "researcher":
+        raise HTTPException(
+            status_code=403,
+            detail="Permission denied",
+        )
+
+    if dataset_id < 1:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid dataset ID",
+        )
+
+    processing_key = os.environ.get("RW_PROCESSING_API_KEY")
+
+    if not processing_key or len(processing_key) < 32:
+        raise HTTPException(
+            status_code=503,
+            detail="Export service is not configured",
+        )
+
+    # Create a token restricted to this dataset and operation.
+    export_token = create_internal_token(
+        username=user["username"],
+        role=user["role"],
+        scope="datasets:export",
+        dataset_id=dataset_id,
+    )
+
+    # Request the CSV file from Processing Service.
+    try:
+        async with httpx.AsyncClient(
+            timeout=5.0,
+            trust_env=False,
+            follow_redirects=False,
+        ) as client:
+            response = await client.post(
+                "http://127.0.0.1:8002/internal/export-dataset",
+                json={"dataset_id": dataset_id},
+                headers={
+                    "X-Processing-Key": processing_key,
+                    "Authorization": f"Bearer {export_token}",
+                },
+            )
+
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Processing Service unavailable",
+        ) from exc
+
+    if response.status_code == 403:
+        raise HTTPException(
+            status_code=403,
+            detail="Export not permitted",
+        )
+
+    if response.status_code == 404:
+        raise HTTPException(
+            status_code=404,
+            detail="Dataset not found",
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail="Export failed",
+        )
+
+    if response.headers.get(
+        "content-type", ""
+    ).split(";")[0].lower() != "text/csv":
+        raise HTTPException(
+            status_code=502,
+            detail="Invalid export response",
+        )
+
+    return Response(
+        content=response.content,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="dataset_{dataset_id}.csv"'
+            )
+        },
+    )
+

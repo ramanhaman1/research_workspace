@@ -35,3 +35,5 @@ data/
 *.egg-info/
 build/
 dist/
+
+.runtime
