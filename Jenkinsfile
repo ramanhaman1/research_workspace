@@ -27,7 +27,7 @@ pipeline {
 
         stage('Security Scan') {
             steps {
-                bat '.venv\\Scripts\\python.exe -m bandit -r services packages -q'
+                bat '.venv\\Scripts\\python.exe -m bandit -r services packages -f json -o reports\\bandit.json'
             }
         }
         stage('Dependency Analysis') {
