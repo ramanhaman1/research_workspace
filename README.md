@@ -34,3 +34,8 @@ See `docs/initial_ssdlc_plan.md` for the initial Secure Software Development Lif
 ## Status
 
 Planning phase. Implementation has not started.
+
+## CI Verification
+
+The Jenkins pipeline automatically checks the project for changes
+and runs the configured tests and security checks.
