@@ -28,11 +28,19 @@ pipeline {
                 bat '.venv\\Scripts\\python.exe -m bandit -r services packages -q'
             }
         }
+        stage('Dependency Analysis') {
+            steps {
+                bat '.venv\\Scripts\\python.exe -m pip install pip-audit'
+                bat '.venv\\Scripts\\python.exe -m pip_audit --local --format json --output reports\\dependency-audit.json'
+            }
+        }
     }
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'reports/junit.xml'
+            junit 'reports/junit.xml'
+            archiveArtifacts artifacts: 'reports/*.json, reports/*.xml',
+                         allowEmptyArchive: true
         }
     }
 }
