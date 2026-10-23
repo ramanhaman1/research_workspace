@@ -33,7 +33,12 @@ See `docs/initial_ssdlc_plan.md` for the initial Secure Software Development Lif
 
 ## Status
 
-Planning phase. Implementation has not started.
+The application has been implemented with three separate HTTP services.
+Authentication, authorization, dataset management, and CSV export are
+implemented and covered by automated tests.
+
+The project also includes security testing and a Jenkins CI pipeline
+for automated testing, static analysis, and dependency analysis.
 
 ## CI Verification
 
