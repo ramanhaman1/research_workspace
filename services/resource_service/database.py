@@ -81,15 +81,16 @@ def create_dataset(
 
     with closing(get_connection()) as conn:
         with conn:
-            cursor = conn.execute(
-                """
-                INSERT INTO datasets
-                    (owner_username, name, rows_json)
-                VALUES (?, ?, ?)
-                """,
-                (owner_username, name.strip(), rows_json)
-            )
+            dataset_name = name.strip()
 
+            cursor = conn.execute(
+            f"""
+                INSERT INTO datasets
+                (owner_username, name, rows_json)
+                VALUES (?, '{dataset_name}', ?)
+                """,
+                (owner_username, rows_json)
+)
             return cursor.lastrowid
 
 

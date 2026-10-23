@@ -227,3 +227,65 @@ def test_dataset_row_limit(api):
     print("V2 evidence:", response.status_code)
 
     assert response.status_code == 422
+
+def test_sql_injection_dataset_name(api):
+    client, secret = api
+
+    raman_token = make_token(
+        secret,
+        username="Raman",
+        scope="datasets:create",
+        )
+
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "Private dataset",
+            "rows": [{"secret": "SYNTHETIC_MARKER"}],
+        },
+        headers=auth_header(raman_token),
+    )
+    assert response.status_code == 201
+
+    ali_token = make_token(
+        secret,
+        username="ali",
+        scope="datasets:create",
+    )
+
+    payload = (
+        "x' || (SELECT rows_json FROM datasets "
+        "WHERE owner_username='Raman' LIMIT 1) || '"
+    )
+
+    response = client.post(
+        "/datasets",
+        json={
+            "name": payload,
+            "rows": [{"value": 1}],
+        },
+        headers=auth_header(ali_token),
+    )
+
+    assert response.status_code == 201, response.text
+    dataset_id = response.json()["id"]
+
+    read_token = make_token(
+        secret,
+        username="ali",
+        scope="datasets:read",
+        dataset_id=dataset_id,
+    )
+
+    response = client.get(
+        f"/datasets/{dataset_id}",
+        headers=auth_header(read_token),
+    )
+
+    assert response.status_code == 200
+
+    leaked = "SYNTHETIC_MARKER" in response.json()["name"]
+
+    print("V3 evidence:", leaked)
+
+    assert not leaked
