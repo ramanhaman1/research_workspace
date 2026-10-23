@@ -17,6 +17,7 @@ class DatasetCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     rows: list[dict[str, str | int | float | bool | None]] = Field(
         min_length=1,
+        max_length=1000,
     )
 
 
