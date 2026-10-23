@@ -40,49 +40,64 @@ From the project folder, create a virtual environment:
 py -3.12 -m venv .venv
 ```
 
-Install dependencies:
+Install the dependencies from `requirements.txt` (this also installs the local CSV helper package):
 
 ```powershell
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m pip install -e packages\csv_helper
 ```
+
+### Initialize the database
+
+Before starting the services for the first time, create the local SQLite tables:
+
+```powershell
+.\.venv\Scripts\python.exe -m services.resource_service.database
+```
+
+This creates the dataset, export and audit-log tables in `data/research_workspace.db`. The local `ali`, `Raman` and `admin` accounts are configured in the application using the passwords below; they do not require database seeding.
 
 ### Environment configuration
 
-The application uses environment variables for authentication and internal communication:
+The application uses these environment variables:
 
-- `RW_JWT_SECRET`
-- `RW_INTERNAL_JWT_SECRET`
-- `RW_PROCESSING_API_KEY`
-- `RW_ALI_PASSWORD`
-- `RW_RAMAN_PASSWORD`
-- `RW_ADMIN_PASSWORD`
+- `RW_JWT_SECRET`: signs the user login tokens (at least 32 characters).
+- `RW_INTERNAL_JWT_SECRET`: signs internal service tokens (at least 32 characters).
+- `RW_PROCESSING_API_KEY`: authorizes calls to Processing Service (at least 32 characters).
+- `RW_ALI_PASSWORD`, `RW_RAMAN_PASSWORD` and `RW_ADMIN_PASSWORD`: passwords for the local test accounts.
 
-Configure these before starting the services. Services that use the same internal JWT secret must receive the same value. Use strong local secrets and do not commit passwords or secrets to GitHub.
+Set the variables in the PowerShell terminal **before** starting the corresponding service. Replace all `REPLACE_...` values with strong local credentials. The internal JWT secret and processing API key must match wherever they are used. Do not commit real secrets or passwords.
 
 ### Running the services
 
-Start each service in a separate PowerShell terminal, after configuring its required environment variables.
+Open **three PowerShell terminals** in the project folder. Start each service with the following commands. Keep each terminal open while the service is running.
 
-**Resource Service:**
+**Terminal 1 – Resource Service (port 8001):**
 
 ```powershell
+$env:RW_INTERNAL_JWT_SECRET = "REPLACE_WITH_SHARED_RANDOM_INTERNAL_SECRET_AT_LEAST_32_CHARS"
 .\.venv\Scripts\python.exe -m uvicorn services.resource_service.main:app --host 127.0.0.1 --port 8001
 ```
 
-**Processing Service:**
+**Terminal 2 – Processing Service (port 8002):**
 
 ```powershell
+$env:RW_PROCESSING_API_KEY = "REPLACE_WITH_SHARED_RANDOM_PROCESSING_KEY_AT_LEAST_32_CHARS"
 .\.venv\Scripts\python.exe -m uvicorn services.processing_service.main:app --host 127.0.0.1 --port 8002
 ```
 
-**Application API:**
+**Terminal 3 – Application API (port 8000):**
 
 ```powershell
+$env:RW_JWT_SECRET = "REPLACE_WITH_RANDOM_LOGIN_SECRET_AT_LEAST_32_CHARS"
+$env:RW_INTERNAL_JWT_SECRET = "REPLACE_WITH_SHARED_RANDOM_INTERNAL_SECRET_AT_LEAST_32_CHARS"
+$env:RW_PROCESSING_API_KEY = "REPLACE_WITH_SHARED_RANDOM_PROCESSING_KEY_AT_LEAST_32_CHARS"
+$env:RW_ALI_PASSWORD = "REPLACE_WITH_ALI_PASSWORD"
+$env:RW_RAMAN_PASSWORD = "REPLACE_WITH_RAMAN_PASSWORD"
+$env:RW_ADMIN_PASSWORD = "REPLACE_WITH_ADMIN_PASSWORD"
 .\.venv\Scripts\python.exe -m uvicorn services.application_api.main:app --host 127.0.0.1 --port 8000
 ```
 
-The API documentation can then be opened at `http://127.0.0.1:8000/docs`.
+Once the services are running, their health endpoints are available at `http://127.0.0.1:8000/health`, `http://127.0.0.1:8001/health` and `http://127.0.0.1:8002/health`. The Application API's Swagger documentation is at `http://127.0.0.1:8000/docs`.
 
 ## Running Tests
 
@@ -92,7 +107,20 @@ To run all automated tests:
 .\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-The automated tests cover authentication, authorization, dataset operations, CSV export, internal tokens and security regression tests.
+The automated tests cover authentication, authorization, dataset operations, CSV export, internal tokens and security regression tests. Test fixtures use their own temporary test database.
+
+### End-to-end export check
+
+With all three services running, open a **fourth PowerShell terminal** in the project folder. Set the same three user passwords used by the Application API, then run:
+
+```powershell
+$env:RW_ALI_PASSWORD = "REPLACE_WITH_ALI_PASSWORD"
+$env:RW_RAMAN_PASSWORD = "REPLACE_WITH_RAMAN_PASSWORD"
+$env:RW_ADMIN_PASSWORD = "REPLACE_WITH_ADMIN_PASSWORD"
+.\.venv\Scripts\python.exe scripts\check_export_e2e.py
+```
+
+This script checks a successful CSV export through the three services and verifies that cross-user, unauthenticated, admin and invalid-token export requests are rejected.
 
 ## Vulnerability Testing
 
@@ -107,7 +135,7 @@ The vulnerabilities were demonstrated and subsequently fixed. The before-and-aft
 
 ## Continuous Integration
 
-Jenkins is configured as a Multibranch Pipeline. It checks GitHub periodically for new commits and pull requests.
+Jenkins is configured as a Multibranch Pipeline. It checks GitHub for changes by periodically scanning the repository (rather than using a GitHub webhook).
 
 The pipeline performs:
 
