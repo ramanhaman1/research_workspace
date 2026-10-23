@@ -71,8 +71,8 @@ def create_dataset(
     if not isinstance(name, str) or not (1 <= len(name.strip()) <= 100):
         raise ValueError("Dataset name must be 1-100 characters")
 
-    if not isinstance(rows, list) or not (1 <= len(rows) <= 1000):
-        raise ValueError("Dataset must contain 1-1000 rows")
+    if not isinstance(rows, list) or len(rows) < 1:
+        raise ValueError("Dataset must contain at least one row")
 
     if not all(isinstance(row, dict) for row in rows):
         raise ValueError("Each row must be an object")

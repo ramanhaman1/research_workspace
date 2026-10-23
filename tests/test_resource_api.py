@@ -203,3 +203,27 @@ def test_invalid_token(api):
     )
 
     assert response.status_code == 401
+
+def test_dataset_row_limit(api):
+    client, secret = api
+
+    token = make_token(
+        secret,
+        username="ali",
+        scope="datasets:create",
+    )
+
+    rows = [{"value": i} for i in range(1001)]
+
+    response = client.post(
+        "/datasets",
+        json={
+            "name": "Row Limit Test",
+            "rows": rows,
+        },
+        headers=auth_header(token),
+    )
+
+    print("V2 evidence:", response.status_code)
+
+    assert response.status_code == 422
