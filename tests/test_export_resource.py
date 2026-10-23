@@ -10,6 +10,7 @@ from services.application_api.internal_tokens import (
 )
 from services.resource_service import database
 from services.resource_service.main import app
+from services.resource_service.database import create_dataset
 
 
 @pytest.fixture
@@ -113,16 +114,25 @@ def test_export_wrong_scope(export_setup):
 
     assert response.status_code == 403
 
-
 def test_export_wrong_dataset(export_setup):
-    client, dataset_id, _ = export_setup
+    client, dataset_a, _ = export_setup
 
-    token = export_token("ali", dataset_id)
+    dataset_b = create_dataset(
+        owner_username="ali",
+        name="Second dataset",
+        rows=[{"value": "DATASET_B"}],
+    )
+
+    assert dataset_a != dataset_b
+
+    token = export_token("ali", dataset_a)
 
     response = client.get(
-        f"/internal/exports/{dataset_id + 1}",
+        f"/internal/exports/{dataset_b}",
         headers=auth_header(token),
     )
+
+    print("V4 evidence:", response.status_code)
 
     assert response.status_code == 403
 
