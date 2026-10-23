@@ -19,6 +19,7 @@ from services.processing_service.main import (
 )
 from services.resource_service import database
 from services.resource_service.main import app as resource_app
+from services.resource_service import database as resource_database
 
 
 @pytest.fixture
@@ -340,3 +341,30 @@ def test_mismatched_resource_response_rejected(export_client):
     assert response.json()["detail"] == (
         "Invalid Resource Service response"
     )
+
+def test_cross_service_dataset_scope(export_client):
+    client, dataset_a, api_key = export_client
+
+    dataset_b = resource_database.create_dataset(
+        owner_username="ali",
+        name="Second dataset",
+        rows=[{"value": "DATASET_B_MARKER"}],
+    )
+
+    assert dataset_a != dataset_b
+
+    token = make_token("ali", dataset_a)
+
+    response = client.post(
+        "/internal/export-dataset",
+        json={"dataset_id": dataset_b},
+        headers=auth_headers(api_key, token),
+    )
+
+    print("V4 cross-service evidence:", response.status_code)
+
+    if response.status_code == 200:
+        assert "DATASET_B_MARKER" in response.text
+
+    assert response.status_code == 403
+    
