@@ -99,15 +99,15 @@ def get_dataset(
 ) -> dict | None:
 
     with closing(get_connection()) as conn:
-        result = conn.execute(
-            """
-            SELECT id, owner_username, name,
-                   rows_json, created_at
-            FROM datasets
-            WHERE id = ? AND owner_username = ?
-            """,
-            (dataset_id, requester_username)
-        ).fetchone()
+         result = conn.execute(
+        """
+        SELECT id, owner_username, name,
+               rows_json, created_at
+        FROM datasets
+        WHERE id = ?
+        """,
+        (dataset_id,)
+    ).fetchone()
 
     if result is None:
         return None
