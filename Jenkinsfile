@@ -14,8 +14,10 @@ pipeline {
                 bat 'py -3.12 -m venv .venv'
                 bat '.venv\\Scripts\\python.exe -m pip install -r requirements.txt'
                 bat '.venv\\Scripts\\python.exe -m pip install -e packages\\csv_helper'
+                bat '.venv\\Scripts\\python.exe -m pip install --upgrade pip==26.2.2 certifi==2026.10.19'
             }
         }
+
 
         stage('Tests') {
             steps {
