@@ -120,7 +120,10 @@ def get_export_dataset(
         )
 
     # The token must be limited to the requested dataset.
-    if type(claims.get("dataset_id")) is not int:
+    if (
+        type(claims.get("dataset_id")) is not int
+        or claims["dataset_id"] != dataset_id
+    ):
         raise HTTPException(
             status_code=403,
             detail="Permission denied",
